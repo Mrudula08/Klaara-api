@@ -1,2 +1,9 @@
+click==8.0.0
+colorama==0.4.4
 Flask==1.1.2
-psycopg2-binary
+gunicorn==20.1.0
+itsdangerous==2.0.0
+Jinja2==3.0.0
+MarkupSafe==2.0.0
+psycopg2-binary==2.8.6
+Werkzeug==2.0.0
