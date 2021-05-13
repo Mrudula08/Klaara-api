@@ -89,7 +89,8 @@ def get_branch_details():
     return result_json
 
 
-app.run(debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)
 
 
 
