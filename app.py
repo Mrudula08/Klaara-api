@@ -1,21 +1,41 @@
 import psycopg2
-from flask import Flask, request
+from flask import Flask, request, make_response
 from psycopg2.extras import RealDictCursor
 
-database_name = 'dd4h7h7tinee4k'
-host = 'ec2-54-145-224-156.compute-1.amazonaws.com'
-port = 5432
-user_name = 'vitkjnvtwvfbam'
-password = '021abdab98af0fc33727a76bb43a143090c4d6f6706027347eb26b422e20ce96'
-db_connection = psycopg2.connect(database=database_name,
-                                 user=user_name,
-                                 password=password,
-                                 host=host, port=port)
+from common.app_configurations import *
 
 app = Flask(__name__)
+app.config['JSON_SORT_KEYS'] = False
+
+
+def establish_connection():
+    """
+    This definition is to establish connection to the database
+    """
+    db_connection = None
+    try:
+        db_connection = psycopg2.connect(database=database_name,
+                                         user=user_name,
+                                         password=password,
+                                         host=host, port=port)
+
+    except Exception as error:
+        print(f"Unable to reach the database server. Please contact the technical team for more details.")
+    return db_connection
+
+
+def get_query_parameters():
+    params = request.args
+    branch_name = params.get('q', '')
+    limit = params.get('limit', 100)
+    offset = params.get('offset', 0)
+    return branch_name, limit, offset
 
 
 def parse_json(result):
+    """
+    This definition is to parse the result and return the result in expected format
+    """
     final_result_list = list()
     try:
         for each_row in result:
@@ -29,7 +49,6 @@ def parse_json(result):
                 "state": each_row['state']
             }
             final_result_list.append(each_json)
-
     except Exception as e:
         print(f"Error Occurred. Please contact the technical team for more details.")
     return final_result_list
@@ -38,11 +57,9 @@ def parse_json(result):
 @app.route('/api/branches/autocomplete', methods=["GET"])
 def get_branch_details_in_ascending_order():
     try:
+        db_connection = establish_connection()
         result_json = {'branches': list}
-        params = request.args
-        branch_name = params.get('q')
-        limit = params.get('limit', 100)
-        offset = params.get('offset', 0)
+        branch_name, limit, offset = get_query_parameters()
         table_name = 'branches'
         query = f"select * from {table_name} " \
                 f"where branch like '%{branch_name}%' " \
@@ -60,23 +77,20 @@ def get_branch_details_in_ascending_order():
     finally:
         db_connection.close()
 
-    return result_json
+    return make_response(result_json)
 
 
 @app.route('/api/branches', methods=["GET"])
 def get_details():
     try:
+        db_connection = establish_connection()
         result_json = {'branches': list}
-        params = request.args
-        branch_name = params.get('q')
-        limit = params.get('limit', 100)
-        offset = params.get('offset', 0)
-        print(branch_name, limit, offset)
+        branch_name, limit, offset = get_query_parameters()
         table_name = 'branches'
         query = f"select * from {table_name} " \
-                f"where branch like '%{branch_name}%' " \
-                f"or city like '%{branch_name}%' " \
-                f"or district like '%{branch_name}%' " \
+                f"where Lower(branch) like Lower('%{branch_name}%') " \
+                f"or Lower(city) like Lower('%{branch_name}%') " \
+                f"or Lower(district) like Lower('%{branch_name}%') " \
                 f"order by ifsc asc " \
                 f"limit {limit} " \
                 f"offset {offset}"
@@ -86,12 +100,11 @@ def get_details():
         final_result_list = parse_json(result)
         result_json['branches'] = final_result_list
     except Exception as error:
+        print(error)
         return f"Error Occurred. Please contact the technical team for more details."
     finally:
         db_connection.close()
-
-
-    return result_json
+    return make_response(result_json)
 
 
 if __name__ == '__main__':
